@@ -27,6 +27,15 @@ import { supabase } from "./lib/supabase";
 import type { Campground, Region, SavedPlan, WeatherForecast } from "./types";
 
 const typeOptions = ["전체", "일반야영장", "자동차야영장", "글램핑", "카라반"];
+const fallbackRegions: Pick<Region, "id" | "name">[] = [
+  { id: "seoul", name: "서울" },
+  { id: "gangneung", name: "강원 강릉" },
+  { id: "daejeon", name: "대전" },
+  { id: "gwangju", name: "광주" },
+  { id: "daegu", name: "대구" },
+  { id: "busan", name: "부산" },
+  { id: "jeju", name: "제주" },
+];
 
 function localDate(offset: number): string {
   const date = new Date();
@@ -38,7 +47,8 @@ function localDate(offset: number): string {
 }
 
 function App() {
-  const [regions, setRegions] = useState<Region[]>([]);
+  const [regions, setRegions] =
+    useState<Pick<Region, "id" | "name">[]>(fallbackRegions);
   const [regionId, setRegionId] = useState("seoul");
   const [date, setDate] = useState(localDate(4));
   const [campType, setCampType] = useState("전체");
@@ -49,7 +59,6 @@ function App() {
   const [email, setEmail] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingRegions, setLoadingRegions] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [activeTab, setActiveTab] = useState<"discover" | "saved">("discover");
@@ -62,8 +71,11 @@ function App() {
   useEffect(() => {
     getRegions()
       .then((data) => setRegions(data))
-      .catch((reason: Error) => setError(reason.message))
-      .finally(() => setLoadingRegions(false));
+      .catch((reason: Error) => {
+        setError(
+          `지역 목록 API에 연결하지 못해 기본 지역 목록을 표시합니다. 검색하려면 Render의 ALLOWED_ORIGINS에 현재 웹 주소를 추가해 주세요. (${reason.message})`,
+        );
+      });
   }, []);
 
   useEffect(() => {
@@ -284,7 +296,7 @@ function App() {
               <div className="search-controls">
                 <label className="control-group">
                   <span className="control-label"><MapPin size={15} /> 지역</span>
-                  <span className="select-wrap"><select value={regionId} onChange={(event) => setRegionId(event.target.value)} disabled={loadingRegions}>{regions.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><ChevronDown size={15} /></span>
+                  <span className="select-wrap"><select value={regionId} onChange={(event) => setRegionId(event.target.value)}>{regions.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><ChevronDown size={15} /></span>
                 </label>
                 <label className="control-group date-control">
                   <span className="control-label"><CalendarDays size={15} /> 캠핑 날짜</span>
@@ -294,7 +306,7 @@ function App() {
                   <span className="control-label"><TentTree size={15} /> 캠핑 유형</span>
                   <span className="select-wrap"><select value={campType} onChange={(event) => setCampType(event.target.value)}>{typeOptions.map((type) => <option key={type}>{type}</option>)}</select><ChevronDown size={15} /></span>
                 </label>
-                <button className="button button-primary search-button" onClick={() => void search()} disabled={loading || loadingRegions}>
+                <button className="button button-primary search-button" onClick={() => void search()} disabled={loading}>
                   {loading ? <LoaderCircle size={17} className="spin" /> : <Search size={17} />}
                   {loading ? "찾는 중" : "캠핑장 찾기"}
                 </button>
