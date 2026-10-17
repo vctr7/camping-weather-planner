@@ -31,12 +31,21 @@ import type { Campground, Region, SavedPlan, WeatherForecast } from "./types";
 const typeOptions = ["전체", "일반야영장", "자동차야영장", "글램핑", "카라반"];
 const fallbackRegions: Pick<Region, "id" | "name">[] = [
   { id: "seoul", name: "서울" },
+  { id: "incheon", name: "인천" },
+  { id: "daejeon", name: "대전" },
+  { id: "daegu", name: "대구" },
+  { id: "gwangju", name: "광주" },
+  { id: "busan", name: "부산" },
+  { id: "ulsan", name: "울산" },
+  { id: "sejong", name: "세종" },
   { id: "gyeonggi", name: "경기" },
   { id: "gangneung", name: "강원도" },
-  { id: "daejeon", name: "대전" },
-  { id: "gwangju", name: "광주" },
-  { id: "daegu", name: "대구" },
-  { id: "busan", name: "부산" },
+  { id: "chungbuk", name: "충북" },
+  { id: "chungnam", name: "충남" },
+  { id: "gyeongbuk", name: "경북" },
+  { id: "gyeongnam", name: "경남" },
+  { id: "jeonbuk", name: "전북" },
+  { id: "jeonnam", name: "전남" },
   { id: "jeju", name: "제주" },
 ];
 
