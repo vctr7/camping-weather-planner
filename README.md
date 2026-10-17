@@ -59,7 +59,7 @@ Supabase SQL Editor에서 `supabase/schema.sql`을 실행합니다. 이메일/�
 ## API
 
 - `GET /api/regions`: 검색 가능 지역, 좌표, 기상청 예보구역 코드를 반환합니다.
-- `GET /api/campgrounds?region=seoul&radius=20000&type=...`: 주변 캠핑장을 검색합니다.
+- `GET /api/campgrounds?region=seoul&radius=20000&type=...`: 주변 캠핑장을 검색합니다. 강원도는 고캠핑 행정구역 검색을 사용해 도내 전체 캠핑장을 검색합니다.
 - `GET /api/weather?region=seoul&date=YYYY-MM-DD`: 해당 날짜의 중기 육상예보와 기온을 반환합니다.
 
 중기예보 조회는 발표일 기준 3~10일 뒤 날짜만 지원합니다. 최신 예보가 아직 제공되지 않았거나 지원 기간을 벗어난 경우 API 오류를 화면에 표시합니다.

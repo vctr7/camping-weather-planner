@@ -25,7 +25,7 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/api/regions")
-async def list_regions() -> list[dict[str, str | float]]:
+async def list_regions() -> list[dict[str, str | float | None]]:
     return [region.model_dump() for region in REGIONS.values()]
 
 

@@ -8,6 +8,7 @@ class Region(BaseModel):
     map_y: float
     land_reg_id: str
     temperature_reg_id: str
+    area_code: str | None = None
 
 
 REGIONS = {
@@ -31,11 +32,12 @@ REGIONS = {
         ),
         Region(
             id="gangneung",
-            name="강원 강릉",
+            name="강원도",
             map_x=128.8761,
             map_y=37.7519,
             land_reg_id="11D20000",
             temperature_reg_id="11D20501",
+            area_code="32",
         ),
         Region(
             id="daejeon",

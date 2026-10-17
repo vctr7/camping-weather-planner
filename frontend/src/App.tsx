@@ -32,7 +32,7 @@ const typeOptions = ["전체", "일반야영장", "자동차야영장", "글램�
 const fallbackRegions: Pick<Region, "id" | "name">[] = [
   { id: "seoul", name: "서울" },
   { id: "gyeonggi", name: "경기" },
-  { id: "gangneung", name: "강원 강릉" },
+  { id: "gangneung", name: "강원도" },
   { id: "daejeon", name: "대전" },
   { id: "gwangju", name: "광주" },
   { id: "daegu", name: "대구" },

@@ -5,6 +5,7 @@ export interface Region {
   map_y: number;
   land_reg_id: string;
   temperature_reg_id: string;
+  area_code?: string | null;
 }
 
 export interface Campground {

@@ -3,7 +3,9 @@ import httpx
 TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 
 
-async def get_public_api_json(url: str, params: dict[str, str | int]) -> dict:
+async def get_public_api_json(
+    url: str, params: dict[str, str | int | float]
+) -> dict:
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         try:
             response = await client.get(url, params=params)

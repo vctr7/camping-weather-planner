@@ -3,6 +3,7 @@ from app.services.public_api import get_items, get_public_api_json
 from app.settings import settings
 
 API_URL = "https://apis.data.go.kr/B551011/GoCamping/locationBasedList"
+AREA_API_URL = "https://apis.data.go.kr/B551011/GoCamping/areaBasedList"
 
 
 async def search_campgrounds(
@@ -11,20 +12,28 @@ async def search_campgrounds(
     if not settings.camping_api_service_key:
         raise RuntimeError("CAMPING_API_SERVICE_KEY 환경변수를 설정해야 합니다.")
 
-    payload = await get_public_api_json(
-        API_URL,
-        {
-            "serviceKey": settings.camping_api_service_key,
-            "numOfRows": 100,
-            "pageNo": page,
-            "MobileOS": "ETC",
-            "MobileApp": "CampingWeatherPlanner",
-            "_type": "json",
-            "mapX": region.map_x,
-            "mapY": region.map_y,
-            "radius": radius,
-        },
-    )
+    params: dict[str, str | int] = {
+        "serviceKey": settings.camping_api_service_key,
+        "numOfRows": 100,
+        "pageNo": page,
+        "MobileOS": "ETC",
+        "MobileApp": "CampingWeatherPlanner",
+        "_type": "json",
+    }
+    if region.area_code:
+        api_url = AREA_API_URL
+        params["areaCode"] = region.area_code
+    else:
+        api_url = API_URL
+        params.update(
+            {
+                "mapX": region.map_x,
+                "mapY": region.map_y,
+                "radius": radius,
+            }
+        )
+
+    payload = await get_public_api_json(api_url, params)
     camps = [_normalize_camp(item) for item in get_items(payload)]
     if camp_type:
         camps = [
