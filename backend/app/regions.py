@@ -22,6 +22,14 @@ REGIONS = {
             temperature_reg_id="11B10101",
         ),
         Region(
+            id="gyeonggi",
+            name="경기",
+            map_x=127.0286,
+            map_y=37.2636,
+            land_reg_id="11B00000",
+            temperature_reg_id="11B20601",
+        ),
+        Region(
             id="gangneung",
             name="강원 강릉",
             map_x=128.8761,
