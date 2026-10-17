@@ -66,6 +66,7 @@ function App() {
   const [campType, setCampType] = useState("전체");
   const [campgrounds, setCampgrounds] = useState<Campground[]>([]);
   const [weather, setWeather] = useState<WeatherForecast | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
   const [selectedCamp, setSelectedCamp] = useState<Campground | null>(null);
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -142,7 +143,7 @@ function App() {
     try {
       const [campResult, weatherResult] = await Promise.allSettled([
         getCampgrounds(regionId, campType === "전체" ? "" : campType),
-        getWeather(regionId, date),
+        date >= localDate(3) ? getWeather(regionId, date) : Promise.resolve(null),
       ]);
       if (campResult.status === "fulfilled") {
         setCampgrounds(campResult.value.items);
@@ -165,6 +166,34 @@ function App() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!selectedCamp || activeTab !== "discover") {
+      return;
+    }
+
+    let active = true;
+    setWeather(null);
+    setWeatherLoading(true);
+    setError("");
+    getWeather(regionId, date, selectedCamp)
+      .then((forecast) => {
+        if (active) setWeather(forecast);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        const detail =
+          reason instanceof Error ? ` (${reason.message})` : "";
+        setError(`선택한 캠핑장 날씨를 불러오지 못했습니다.${detail}`);
+      })
+      .finally(() => {
+        if (active) setWeatherLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeTab, date, regionId, selectedCamp]);
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -380,7 +409,7 @@ function App() {
                 </label>
                 <label className="control-group date-control">
                   <span className="control-label"><CalendarDays size={15} /> 캠핑 날짜</span>
-                  <input type="date" value={date} min={localDate(3)} max={localDate(10)} onChange={(event) => setDate(event.target.value)} />
+                  <input type="date" value={date} min={localDate(0)} max={localDate(10)} onChange={(event) => setDate(event.target.value)} />
                 </label>
                 <label className="control-group type-control">
                   <span className="control-label"><TentTree size={15} /> 캠핑 유형</span>
@@ -391,7 +420,7 @@ function App() {
                   {loading ? "찾는 중" : "캠핑장 찾기"}
                 </button>
               </div>
-              <div className="search-foot"><span><Wind size={13} /> 기상청 중기예보 기준 3~10일 일정 검색</span><button onClick={() => { setRegionId("seoul"); setDate(localDate(4)); setCampType("전체"); }}>조건 초기화</button></div>
+              <div className="search-foot"><span><Wind size={13} /> 캠핑장 상세예보 0~3일 · 지역 중기예보 3~10일</span><button onClick={() => { setRegionId("seoul"); setDate(localDate(4)); setCampType("전체"); }}>조건 초기화</button></div>
             </section>
 
             {error && <div className="message message-error" role="alert"><span>{error}</span><button onClick={() => setError("")} aria-label="오류 닫기"><X size={16} /></button></div>}
@@ -416,13 +445,13 @@ function App() {
                   )}
                 </div>
                 <aside className="weather-card">
-                  <div className="weather-topline"><span className="weather-label"><CloudSun size={15} /> YOUR TRIP WEATHER</span><span className="weather-live"><i /> 기상청 예보</span></div>
-                  <div className="weather-location"><MapPin size={14} /> {region?.name ?? "지역 선택"} <span>·</span> {formattedDate}</div>
+                  <div className="weather-topline"><span className="weather-label"><CloudSun size={15} /> YOUR TRIP WEATHER</span><span className="weather-live"><i /> {currentWeather?.forecast_scope === "campground" ? "캠핑장 인근 상세예보" : "기상청 예보"}</span></div>
+                  <div className="weather-location"><MapPin size={14} /> {currentWeather?.forecast_scope === "campground" ? selectedCamp?.name : selectedCamp ? [selectedCamp.province, selectedCamp.district].filter(Boolean).join(" ") || region?.name : region?.name ?? "지역 선택"} <span>·</span> {formattedDate}</div>
                   {currentWeather ? (
                     <>
                       <div className="weather-main">
                         <div className="weather-icon">{weatherIcon(currentWeather.weather)}</div>
-                        <div><strong>{currentWeather.weather}</strong><span>예보 {currentWeather.forecast_day}일 전</span></div>
+                        <div><strong>{currentWeather.weather}</strong><span>예보 D+{currentWeather.forecast_day}</span></div>
                       </div>
                       <div className="temp-range"><span>{currentWeather.min_temperature ?? "—"}°</span><div className="temp-track"><i /></div><span>{currentWeather.max_temperature ?? "—"}°</span></div>
                       <div className="weather-stats">
@@ -432,9 +461,9 @@ function App() {
                       </div>
                     </>
                   ) : (
-                    <div className="weather-placeholder"><div className="cloud-illustration"><CloudSun size={50} strokeWidth={1.2} /></div><p>검색하면 선택한 날짜의<br />날씨를 알려드릴게요.</p></div>
+                    <div className="weather-placeholder"><div className="cloud-illustration">{weatherLoading ? <LoaderCircle size={42} className="spin" /> : <CloudSun size={50} strokeWidth={1.2} />}</div><p>{weatherLoading ? "캠핑장 인근 날씨를<br />불러오고 있어요." : "검색하면 선택한 날짜의<br />날씨를 알려드릴게요."}</p></div>
                   )}
-                  <div className="weather-foot"><span><i /> 중기예보 데이터</span><span>발표시각 기준</span></div>
+                  <div className="weather-foot"><span><i /> {currentWeather?.forecast_scope === "campground" ? "캠핑장 인근 상세예보" : "시·도 중기예보"}</span><span>발표시각 기준</span></div>
                 </aside>
               </div>
             </section>

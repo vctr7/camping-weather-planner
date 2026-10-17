@@ -30,7 +30,15 @@ export function getCampgrounds(
   return request(`/api/campgrounds?${params.toString()}`);
 }
 
-export function getWeather(region: string, date: string): Promise<WeatherForecast> {
+export function getWeather(
+  region: string,
+  date: string,
+  campground?: Pick<Campground, "map_x" | "map_y">,
+): Promise<WeatherForecast> {
   const params = new URLSearchParams({ region, date });
+  if (campground?.map_x && campground.map_y) {
+    params.set("map_x", campground.map_x);
+    params.set("map_y", campground.map_y);
+  }
   return request(`/api/weather?${params.toString()}`);
 }

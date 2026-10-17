@@ -30,6 +30,8 @@ export interface WeatherForecast {
   date: string;
   forecast_day: number;
   issued_at: string;
+  forecast_scope: "campground" | "region";
+  location_name: string;
   precipitation_probability: number | null;
   weather: string;
   min_temperature: number | null;

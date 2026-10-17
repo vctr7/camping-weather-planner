@@ -48,10 +48,19 @@ async def campgrounds(
 
 
 @app.get("/api/weather")
-async def weather(region: str, target_date: date = Query(alias="date")) -> dict:
+async def weather(
+    region: str,
+    target_date: date = Query(alias="date"),
+    map_x: float | None = None,
+    map_y: float | None = None,
+) -> dict:
     try:
+        if (map_x is None) != (map_y is None):
+            raise ValueError("캠핑장 좌표 map_x와 map_y를 함께 전달해야 합니다.")
         selected_region = get_region(region)
-        return await get_weather_forecast(selected_region, target_date)
+        return await get_weather_forecast(
+            selected_region, target_date, map_x=map_x, map_y=map_y
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
