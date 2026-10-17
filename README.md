@@ -1,0 +1,71 @@
+# 캠핑 날씨 플래너
+
+한국관광공사 고캠핑의 캠핑장 정보와 기상청 중기예보를 한 화면에서 검색하고, 캠핑 계획을 저장하는 웹 서비스입니다.
+
+## 프로젝트 구성
+
+- `frontend/`: React + Vite + TypeScript 프론트엔드. Vercel 배포 대상입니다.
+- `backend/`: FastAPI 서버. Render에 배포하며 고캠핑/기상청 API를 호출합니다.
+- `supabase/schema.sql`: 사용자별 캠핑 계획 테이블과 Row Level Security 정책, 예보구역 매핑 테이블입니다.
+
+브라우저는 공공데이터 API를 직접 호출하지 않습니다. 공공데이터 API 키는 FastAPI 환경변수에만 설정합니다.
+
+## 로컬 실행
+
+### API 서버
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload
+```
+
+`.env`에 공공데이터포털에서 발급한 디코딩된 서비스키를 입력합니다. API 상태 확인은 `http://localhost:8000/health`, API 문서는 `http://localhost:8000/docs`에서 할 수 있습니다.
+
+### 프론트엔드
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+기본 주소는 프론트엔드 `http://localhost:5173`, API 서버 `http://localhost:8000`입니다. `VITE_API_BASE_URL`로 API 주소를 변경할 수 있습니다.
+
+## 환경변수
+
+### FastAPI / Render
+
+| 변수 | 설명 |
+| --- | --- |
+| `CAMPING_API_SERVICE_KEY` | 고캠핑 API 서비스키 |
+| `WEATHER_API_SERVICE_KEY` | 기상청 중기예보 API 서비스키 |
+| `ALLOWED_ORIGINS` | 허용할 프론트엔드 오리진. 여러 주소는 쉼표로 구분 |
+
+### 프론트엔드 / Vercel
+
+| 변수 | 설명 |
+| --- | --- |
+| `VITE_API_BASE_URL` | 배포된 FastAPI 서버 주소 |
+| `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon 공개 키 |
+
+Supabase SQL Editor에서 `supabase/schema.sql`을 실행하고, Authentication에서 이메일 OTP 로그인을 활성화합니다.
+
+## API
+
+- `GET /api/regions`: 검색 가능 지역, 좌표, 기상청 예보구역 코드를 반환합니다.
+- `GET /api/campgrounds?region=seoul&radius=20000&type=...`: 주변 캠핑장을 검색합니다.
+- `GET /api/weather?region=seoul&date=YYYY-MM-DD`: 해당 날짜의 중기 육상예보와 기온을 반환합니다.
+
+중기예보 조회는 발표일 기준 3~10일 뒤 날짜만 지원합니다. 최신 예보가 아직 제공되지 않았거나 지원 기간을 벗어난 경우 API 오류를 화면에 표시합니다.
+
+## 배포
+
+- Vercel 프로젝트의 Root Directory를 `frontend`로 설정합니다.
+- Render Web Service의 Root Directory는 `backend`, Build Command는 `pip install -r requirements.txt`, Start Command는 `uvicorn app.main:app --host 0.0.0.0 --port $PORT`로 설정합니다.
+- Render의 `ALLOWED_ORIGINS`에는 배포된 Vercel 도메인을 입력합니다.
