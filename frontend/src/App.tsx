@@ -189,6 +189,18 @@ function App() {
     setNotice("캠핑 계획을 이 브라우저에 저장했습니다.");
   }
 
+  function toggleSavedPlan(camp: Campground) {
+    const savedPlan = savedPlans.find(
+      (item) =>
+        item.campground.content_id === camp.content_id && item.date === date,
+    );
+    if (savedPlan) {
+      void removePlan(savedPlan);
+    } else {
+      void savePlan(camp);
+    }
+  }
+
   async function loadSavedPlans() {
     if (!supabase || !userEmail) return;
     const { data, error: loadError } = await supabase
@@ -325,7 +337,7 @@ function App() {
               <div className="results-layout">
                 <div className="camp-list">
                   {campgrounds.length > 0 ? campgrounds.map((camp, index) => (
-                    <CampCard key={`${camp.content_id}-${index}`} camp={camp} selected={selectedCamp?.content_id === camp.content_id} onSelect={() => setSelectedCamp(camp)} onSave={() => void savePlan(camp)} />
+                    <CampCard key={`${camp.content_id}-${index}`} camp={camp} selected={selectedCamp?.content_id === camp.content_id} onSelect={() => setSelectedCamp(camp)} onSave={() => toggleSavedPlan(camp)} saved={savedPlans.some((plan) => plan.campground.content_id === camp.content_id && plan.date === date)} />
                   )) : (
                     <div className="empty-state">
                       <div className="empty-icon">{loading ? <LoaderCircle size={26} className="spin" /> : <Compass size={25} />}</div>
@@ -403,7 +415,7 @@ function CampCard({
       <div className="camp-photo" style={camp.image_url ? { backgroundImage: `url("${camp.image_url}")` } : undefined}>
         {!camp.image_url && <div className="photo-fallback"><TentTree size={38} strokeWidth={1.1} /><span>WEEKEND<br />IN NATURE</span></div>}
         <span className="camp-badge">{camp.type || "자연 속 캠핑"}</span>
-        <button className={`save-button${saved ? " is-saved" : ""}`} aria-label={saved ? "플랜 삭제" : "플랜 저장"} onClick={(event) => { event.stopPropagation(); onSave(); }}>{saved ? <X size={16} /> : <Heart size={17} />}</button>
+        <button className={`save-button${saved ? " is-saved" : ""}`} type="button" aria-label={saved ? "플랜 저장 취소" : "플랜 저장"} aria-pressed={saved} onClick={(event) => { event.stopPropagation(); onSave(); }}><Heart size={17} fill={saved ? "currentColor" : "none"} /></button>
       </div>
       <div className="camp-info">
         <div className="camp-title-row"><h3>{camp.name}</h3><span className="rating-mark"><Leaf size={12} /> PICK</span></div>

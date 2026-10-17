@@ -44,7 +44,7 @@ npm run dev
 | --- | --- |
 | `CAMPING_API_SERVICE_KEY` | 고캠핑 API 서비스키 |
 | `WEATHER_API_SERVICE_KEY` | 기상청 중기예보 API 서비스키 |
-| `ALLOWED_ORIGINS` | 허용할 프론트엔드 오리진. 여러 주소는 쉼표로 구분 |
+| `ALLOWED_ORIGINS` | 허용할 프론트엔드 오리진. 여러 주소는 쉼표로 구분. Render에는 `https://camping-weather-planner.vercel.app`을 포함해야 합니다. |
 
 ### 프론트엔드 / Vercel
 
