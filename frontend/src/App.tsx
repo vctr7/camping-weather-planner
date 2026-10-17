@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import {
   ArrowDownUp,
   ArrowRight,
@@ -22,6 +23,7 @@ import {
   Wind,
   X,
 } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
 import { getCampgrounds, getRegions, getWeather } from "./lib/api";
 import { supabase } from "./lib/supabase";
 import type { Campground, Region, SavedPlan, WeatherForecast } from "./types";
@@ -36,25 +38,6 @@ const fallbackRegions: Pick<Region, "id" | "name">[] = [
   { id: "busan", name: "부산" },
   { id: "jeju", name: "제주" },
 ];
-
-let anonymousSignInRequest: Promise<string | null> | null = null;
-
-async function getOrCreateAnonymousUserId(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  if (data.session) return data.session.user.id;
-
-  anonymousSignInRequest ??= supabase.auth.signInAnonymously()
-    .then(({ data: anonymousData, error: signInError }) => {
-      if (signInError) throw signInError;
-      return anonymousData.user?.id ?? null;
-    })
-    .finally(() => {
-      anonymousSignInRequest = null;
-    });
-  return anonymousSignInRequest;
-}
 
 function localDate(offset: number): string {
   const date = new Date();
@@ -76,6 +59,14 @@ function App() {
   const [selectedCamp, setSelectedCamp] = useState<Campground | null>(null);
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -98,24 +89,33 @@ function App() {
 
   useEffect(() => {
     if (!supabase) {
-      setError("캠핑 플랜을 DB에 저장하려면 Supabase URL과 anon key를 설정해 주세요.");
       return;
     }
 
+    const client = supabase;
     let active = true;
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user.id ?? null);
+    const applySession = (session: Session | null) => {
+      const accountSession = session?.user.email ? session : null;
+      setUserId(accountSession?.user.id ?? null);
+      setUserEmail(accountSession?.user.email ?? null);
+    };
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      applySession(session);
     });
 
-    getOrCreateAnonymousUserId()
-      .then((id) => {
-        if (active && id) setUserId(id);
-        else if (active) setError("Supabase 익명 세션을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    client.auth.getSession()
+      .then(async ({ data: sessionData, error: sessionError }) => {
+        if (sessionError) throw sessionError;
+        if (sessionData.session && !sessionData.session.user.email) {
+          const { error: signOutError } = await client.auth.signOut();
+          if (signOutError) throw signOutError;
+        }
+        if (active) applySession(sessionData.session);
       })
       .catch((reason: unknown) => {
         if (active) {
           const detail = reason instanceof Error ? ` (${reason.message})` : "";
-          setError(`익명 세션을 만들지 못했습니다. Supabase에서 Anonymous Sign-Ins를 활성화해 주세요.${detail}`);
+          setError(`인증 상태를 확인하지 못했습니다.${detail}`);
         }
       });
     return () => {
@@ -156,13 +156,75 @@ function App() {
     }
   }
 
+  async function authenticate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthError("");
+    if (!supabase) {
+      setAuthError("계정 기능을 사용하려면 Supabase URL과 anon key를 설정해 주세요.");
+      return;
+    }
+    if (authMode === "signUp" && password !== confirmPassword) {
+      setAuthError("비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      if (authMode === "signUp") {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
+        if (signUpError) {
+          setAuthError(signUpError.message);
+          return;
+        }
+        if (!data.session) {
+          setAuthError("계정은 생성됐지만 로그인 세션이 없습니다. Supabase Authentication에서 Confirm email을 끄고 다시 로그인해 주세요.");
+          return;
+        }
+        setNotice("회원가입과 로그인이 완료되었습니다.");
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) {
+          setAuthError(signInError.message);
+          return;
+        }
+        setNotice("로그인되었습니다.");
+      }
+      setAuthOpen(false);
+      setPassword("");
+      setConfirmPassword("");
+    } catch (reason) {
+      setAuthError(
+        reason instanceof Error
+          ? reason.message
+          : "인증 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    const { error: authError } = await supabase.auth.signOut();
+    if (authError) setError(authError.message);
+  }
+
   async function savePlan(camp: Campground) {
     if (!supabase) {
       setError("캠핑 플랜을 DB에 저장하려면 Supabase URL과 anon key를 설정해 주세요.");
       return;
     }
-    if (!userId) {
-      setError("DB 연결을 준비 중입니다. 잠시 후 다시 시도해 주세요.");
+    if (!userId || !userEmail) {
+      setAuthMode("signIn");
+      setAuthError("");
+      setAuthOpen(true);
+      setNotice("플랜을 저장하려면 로그인해 주세요. 계정이 없으면 회원가입을 선택할 수 있습니다.");
       return;
     }
 
@@ -232,8 +294,12 @@ function App() {
   }
 
   useEffect(() => {
-    if (userId) void loadSavedPlans();
-  }, [userId]);
+    if (userId && userEmail) {
+      void loadSavedPlans();
+    } else {
+      setSavedPlans([]);
+    }
+  }, [userId, userEmail]);
 
   const currentWeather = weather;
   const formattedDate = new Intl.DateTimeFormat("ko-KR", {
@@ -254,7 +320,22 @@ function App() {
           <button className={activeTab === "saved" ? "nav-link active" : "nav-link"} onClick={() => setActiveTab("saved")}>내 플랜 <span className="nav-count">{savedPlans.length}</span></button>
         </nav>
         <div className="account-area">
-          <span className="guest-label">{userId ? "게스트 · DB 자동 저장" : "게스트 모드 연결 중"}</span>
+          {userEmail ? (
+            <>
+              <span className="account-email">{userEmail}</span>
+              <button className="button button-quiet button-small" onClick={() => void signOut()}>로그아웃</button>
+            </>
+          ) : (
+            <button
+              className="button button-quiet button-small"
+              onClick={() => {
+                setAuthError("");
+                setAuthOpen(true);
+              }}
+            >
+              로그인 / 회원가입 <ArrowRight size={14} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -362,6 +443,86 @@ function App() {
         )}
       </main>
       <footer className="footer"><a className="brand footer-brand" href="#"><span className="brand-mark"><TentTree size={18} /></span><span>camp<span className="brand-colon">:</span>on</span></a><span>여행의 설렘은 더하고, 준비의 번거로움은 덜고.</span><span>기상청 · 한국관광공사 고캠핑 API</span></footer>
+      {authOpen && (
+        <div
+          className="auth-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setAuthOpen(false);
+          }}
+        >
+          <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <button className="auth-close" type="button" aria-label="닫기" onClick={() => setAuthOpen(false)}>
+              <X size={18} />
+            </button>
+            <div className="auth-mark"><TentTree size={23} /></div>
+            <div className="auth-eyebrow">CAMP:ON ACCOUNT</div>
+            <h2 id="auth-title">{authMode === "signUp" ? "새 계정 만들기" : "다시 오신 걸 환영해요"}</h2>
+            <p className="auth-description">
+              {authMode === "signUp"
+                ? "계정을 만들고 캠핑 플랜을 안전하게 저장해 보세요."
+                : "로그인하고 저장한 캠핑 플랜을 확인해 보세요."}
+            </p>
+            <form className="auth-form" onSubmit={(event) => void authenticate(event)}>
+              <label>
+                이메일
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                비밀번호
+                <input
+                  type="password"
+                  autoComplete={authMode === "signUp" ? "new-password" : "current-password"}
+                  placeholder="8자 이상 입력해 주세요"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  minLength={8}
+                  required
+                />
+              </label>
+              {authMode === "signUp" && (
+                <label>
+                  비밀번호 확인
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="비밀번호를 한 번 더 입력해 주세요"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </label>
+              )}
+              {authError && <p className="auth-error" role="alert">{authError}</p>}
+              {!supabase && <p className="auth-config-note">계정 기능은 Supabase 환경변수 설정 후 사용할 수 있습니다.</p>}
+              <button className="button button-primary auth-submit" type="submit" disabled={authLoading}>
+                {authLoading ? <LoaderCircle size={16} className="spin" /> : null}
+                {authLoading ? "처리 중..." : authMode === "signUp" ? "회원가입" : "로그인"}
+              </button>
+            </form>
+            <p className="auth-switch">
+              {authMode === "signUp" ? "이미 계정이 있나요?" : "아직 계정이 없나요?"}
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode(authMode === "signUp" ? "signIn" : "signUp");
+                  setAuthError("");
+                  setConfirmPassword("");
+                }}
+              >
+                {authMode === "signUp" ? "로그인" : "회원가입"}
+              </button>
+            </p>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
