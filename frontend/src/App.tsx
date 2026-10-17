@@ -235,15 +235,6 @@ function App() {
     if (userId) void loadSavedPlans();
   }, [userId]);
 
-  useEffect(() => {
-    if (!authOpen) return;
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setAuthOpen(false);
-    }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [authOpen]);
-
   const currentWeather = weather;
   const formattedDate = new Intl.DateTimeFormat("ko-KR", {
     month: "long",

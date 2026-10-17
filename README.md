@@ -54,7 +54,7 @@ npm run dev
 | `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon 공개 키 |
 
-Supabase SQL Editor에서 `supabase/schema.sql`을 실행하고, Authentication에서 이메일 인증을 설정합니다. 웹 화면의 `로그인 / 회원가입`에서 이메일과 비밀번호로 계정을 만들거나 로그인할 수 있으며, 이메일 확인이 활성화된 프로젝트에서는 가입 확인 메일의 링크를 눌러야 로그인할 수 있습니다.
+Supabase SQL Editor에서 `supabase/schema.sql`을 실행하고, **Authentication → Sign In / Providers → Anonymous Sign-Ins**를 활성화합니다. 앱은 별도의 회원가입이나 로그인 화면 없이 익명 세션을 만들고, Row Level Security 정책으로 해당 브라우저의 캠핑 플랜만 저장·조회합니다. 익명 세션은 브라우저 저장 공간에 연결되므로 다른 기기에서 같은 플랜을 볼 수 없고, 브라우저 데이터를 지우면 익명 계정에 다시 접근하지 못할 수 있습니다.
 
 ## API
 
