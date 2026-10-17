@@ -65,6 +65,7 @@ function App() {
   const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -143,6 +144,7 @@ function App() {
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
+    setAuthSuccess("");
     if (!supabase) {
       setAuthError("계정 기능을 사용하려면 Supabase URL과 anon key를 설정해 주세요.");
       return;
@@ -164,11 +166,13 @@ function App() {
           setAuthError(signUpError.message);
           return;
         }
-        setNotice(
-          data.session
-            ? "회원가입과 로그인이 완료되었습니다."
-            : "가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 계정을 활성화해 주세요.",
-        );
+        if (!data.session) {
+          setAuthSuccess("가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 계정을 활성화해 주세요.");
+          setPassword("");
+          setConfirmPassword("");
+          return;
+        }
+        setNotice("회원가입과 로그인이 완료되었습니다.");
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -495,6 +499,7 @@ function App() {
                 </label>
               )}
               {authError && <p className="auth-error" role="alert">{authError}</p>}
+              {authSuccess && <p className="auth-success" role="status">{authSuccess}</p>}
               {!supabase && <p className="auth-config-note">계정 생성과 로그인은 Supabase 환경변수 설정 후 사용할 수 있습니다.</p>}
               <button className="button button-primary auth-submit" type="submit" disabled={authLoading}>
                 {authLoading ? <LoaderCircle size={16} className="spin" /> : null}
@@ -512,6 +517,7 @@ function App() {
                 onClick={() => {
                   setAuthMode(authMode === "signUp" ? "signIn" : "signUp");
                   setAuthError("");
+                  setAuthSuccess("");
                   setConfirmPassword("");
                 }}
               >

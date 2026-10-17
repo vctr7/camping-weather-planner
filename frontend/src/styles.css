@@ -282,8 +282,9 @@ a { color: inherit; text-decoration: none; }
 .auth-form input::placeholder { color: #b0b5ab; font-size: 11px; font-weight: 400; }
 .auth-submit { min-height: 43px; margin-top: 2px; font-size: 12px; }
 .auth-submit:disabled { cursor: wait; opacity: .7; }
-.auth-error, .auth-config-note { margin: 0; border-radius: 6px; padding: 10px 11px; font-size: 10px; line-height: 1.6; }
+.auth-error, .auth-success, .auth-config-note { margin: 0; border-radius: 6px; padding: 10px 11px; font-size: 10px; line-height: 1.6; }
 .auth-error { color: #9d4d3d; background: #f8e9e4; }
+.auth-success { color: #486246; background: #eaf0e5; }
 .auth-config-note { color: #727c67; background: #f2f4ef; }
 .auth-switch { margin: 21px 0 0; color: #8b9186; font-size: 10px; text-align: center; }
 .auth-switch button { margin-left: 5px; border: 0; padding: 2px; color: #536d4c; background: none; font-size: inherit; font-weight: 700; }
