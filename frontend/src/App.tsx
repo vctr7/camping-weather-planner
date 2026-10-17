@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import {
   ArrowDownUp,
   ArrowRight,
@@ -57,7 +58,13 @@ function App() {
   const [selectedCamp, setSelectedCamp] = useState<Campground | null>(null);
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -133,21 +140,58 @@ function App() {
     }
   }
 
-  async function signIn() {
+  async function authenticate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthError("");
     if (!supabase) {
-      setNotice("Supabase 환경변수가 설정되지 않아 이 브라우저에 계획을 저장합니다.");
+      setAuthError("계정 기능을 사용하려면 Supabase URL과 anon key를 설정해 주세요.");
       return;
     }
-    if (!email.trim()) {
-      setError("로그인 링크를 받을 이메일을 입력해 주세요.");
+    if (authMode === "signUp" && password !== confirmPassword) {
+      setAuthError("비밀번호 확인이 일치하지 않습니다.");
       return;
     }
-    const { error: authError } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
-    });
-    if (authError) setError(authError.message);
-    else setNotice("로그인 링크를 이메일로 보냈습니다. 메일함을 확인해 주세요.");
+
+    setAuthLoading(true);
+    try {
+      if (authMode === "signUp") {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (signUpError) {
+          setAuthError(signUpError.message);
+          return;
+        }
+        setNotice(
+          data.session
+            ? "회원가입과 로그인이 완료되었습니다."
+            : "가입 확인 메일을 보냈습니다. 메일의 링크를 눌러 계정을 활성화해 주세요.",
+        );
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) {
+          setAuthError(signInError.message);
+          return;
+        }
+        setNotice("로그인되었습니다.");
+      }
+      setAuthOpen(false);
+      setPassword("");
+      setConfirmPassword("");
+    } catch (reason) {
+      setAuthError(
+        reason instanceof Error
+          ? reason.message
+          : "인증 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    } finally {
+      setAuthLoading(false);
+    }
   }
 
   async function signOut() {
@@ -248,6 +292,15 @@ function App() {
     if (userEmail) void loadSavedPlans();
   }, [userEmail]);
 
+  useEffect(() => {
+    if (!authOpen) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setAuthOpen(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [authOpen]);
+
   const currentWeather = weather;
   const formattedDate = new Intl.DateTimeFormat("ko-KR", {
     month: "long",
@@ -273,10 +326,9 @@ function App() {
               <button className="button button-quiet button-small" onClick={signOut}>로그아웃</button>
             </>
           ) : (
-            <div className="signin">
-              <input aria-label="로그인 이메일" type="email" placeholder="이메일로 로그인" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void signIn()} />
-              <button className="button button-quiet button-small" onClick={() => void signIn()}>로그인 링크 <ArrowRight size={14} /></button>
-            </div>
+            <button className="button button-quiet button-small" onClick={() => { setAuthError(""); setAuthOpen(true); }}>
+              로그인 / 회원가입 <ArrowRight size={14} />
+            </button>
           )}
         </div>
       </header>
@@ -385,6 +437,90 @@ function App() {
         )}
       </main>
       <footer className="footer"><a className="brand footer-brand" href="#"><span className="brand-mark"><TentTree size={18} /></span><span>camp<span className="brand-colon">:</span>on</span></a><span>여행의 설렘은 더하고, 준비의 번거로움은 덜고.</span><span>기상청 · 한국관광공사 고캠핑 API</span></footer>
+      {authOpen && (
+        <div
+          className="auth-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setAuthOpen(false);
+          }}
+        >
+          <section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <button className="auth-close" type="button" aria-label="닫기" onClick={() => setAuthOpen(false)}>
+              <X size={18} />
+            </button>
+            <div className="auth-mark"><TentTree size={23} /></div>
+            <div className="auth-eyebrow">CAMP:ON ACCOUNT</div>
+            <h2 id="auth-title">{authMode === "signUp" ? "새 계정 만들기" : "다시 오신 걸 환영해요"}</h2>
+            <p className="auth-description">
+              {authMode === "signUp"
+                ? "계정을 만들고 캠핑 플랜을 안전하게 저장해 보세요."
+                : "로그인하고 저장한 캠핑 플랜을 확인해 보세요."}
+            </p>
+            <form className="auth-form" onSubmit={(event) => void authenticate(event)}>
+              <label>
+                이메일
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                비밀번호
+                <input
+                  type="password"
+                  autoComplete={authMode === "signUp" ? "new-password" : "current-password"}
+                  placeholder="8자 이상 입력해 주세요"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  minLength={8}
+                  required
+                />
+              </label>
+              {authMode === "signUp" && (
+                <label>
+                  비밀번호 확인
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="비밀번호를 한 번 더 입력해 주세요"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </label>
+              )}
+              {authError && <p className="auth-error" role="alert">{authError}</p>}
+              {!supabase && <p className="auth-config-note">계정 생성과 로그인은 Supabase 환경변수 설정 후 사용할 수 있습니다.</p>}
+              <button className="button button-primary auth-submit" type="submit" disabled={authLoading}>
+                {authLoading ? <LoaderCircle size={16} className="spin" /> : null}
+                {authLoading
+                  ? "처리 중..."
+                  : authMode === "signUp"
+                    ? "회원가입"
+                    : "로그인"}
+              </button>
+            </form>
+            <p className="auth-switch">
+              {authMode === "signUp" ? "이미 계정이 있나요?" : "아직 계정이 없나요?"}
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode(authMode === "signUp" ? "signIn" : "signUp");
+                  setAuthError("");
+                  setConfirmPassword("");
+                }}
+              >
+                {authMode === "signUp" ? "로그인" : "회원가입"}
+              </button>
+            </p>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
